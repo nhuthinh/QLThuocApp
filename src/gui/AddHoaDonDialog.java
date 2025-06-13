@@ -1,10 +1,12 @@
 package gui;
 
 import controller.ThuocController;
+import controller.HoaDonController;
 import entities.ChiTietHoaDon;
 import entities.HoaDon;
 import entities.KhachHang;
 import entities.Thuoc;
+import utils.MessageDialog;
 import controller.KhachHangController;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -13,16 +15,17 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.awt.Dimension;
 
 
 public class AddHoaDonDialog extends JDialog {
+	private HoaDonController hoaDonController = new HoaDonController();
 	private JTextField txtDiemSuDung;
 	private JLabel lblDiemHienTai;
 	private JLabel lblThanhTienSauGiam;
 	private int diemHienTai = 0;  // tích điểm hiện tại của khách
     private JTextField txtIdHD, txtThoiGian, txtIdNV, txtPhuongThuc, txtTrangThai, txtTongTien;
     private JComboBox<String> cbKhachHang;
-    private JButton btnThemKhachHang;
     private List<String> danhSachKhach;
     private JTable tblThuoc;
     private DefaultTableModel modelThuoc;
@@ -35,8 +38,10 @@ public class AddHoaDonDialog extends JDialog {
     private ThuocController thuocController = new ThuocController();
     private KhachHangController khachHangController = new KhachHangController();
 
+
     public AddHoaDonDialog(JFrame parent) {
         super(parent, "Thêm hóa đơn mới", true);
+        setPreferredSize(new Dimension(1600, 800));
         setSize(750, 550);
         setLocationRelativeTo(parent);
         setLayout(new BorderLayout());
@@ -50,7 +55,8 @@ public class AddHoaDonDialog extends JDialog {
         txtIdHD = new JTextField();
         txtThoiGian = new JTextField();
         txtIdNV = new JTextField();
-
+        txtIdHD.setText(hoaDonController.getNextHoaDonId());
+        txtIdHD.setEditable(false); // Không cho sửa tay
 
         lblDiemHienTai = new JLabel("Điểm hiện có: 0");
         txtDiemSuDung = new JTextField("0");
@@ -92,22 +98,10 @@ public class AddHoaDonDialog extends JDialog {
                     }
                 }
                 cbKhachHang.setSelectedItem(input);
-                btnThemKhachHang.setVisible(!found && !input.isEmpty());
                 cbKhachHang.showPopup();
             }
         });
-        btnThemKhachHang = new JButton("Thêm khách hàng");
-        btnThemKhachHang.setVisible(false);
-        btnThemKhachHang.addActionListener(e -> {
-            JOptionPane.showMessageDialog(this, "Viết code thêm khách hàng mới tại đây!");
-            // Khi thêm xong, ví dụ:
-            // KhachHang khMoi = ... // lấy từ form thêm mới
-            // String s = khMoi.getIdKH() + " - " + khMoi.getHoTen() + " - " + khMoi.getSdt();
-            // danhSachKhach.add(s);
-            // cbKhachHang.addItem(s);
-            // cbKhachHang.setSelectedItem(s);
-            // btnThemKhachHang.setVisible(false);
-        });
+
         cbKhachHang.addActionListener(e -> {
             String selected = (String) cbKhachHang.getSelectedItem();
             String idKH = selected != null ? selected.split(" - ")[0].trim() : "";
@@ -140,14 +134,10 @@ public class AddHoaDonDialog extends JDialog {
                     }
                 }
                 cbKhachHang.setSelectedItem(input);
-                btnThemKhachHang.setVisible(!found && !input.isEmpty());
                 cbKhachHang.showPopup();
             }
         });
-        btnThemKhachHang.addActionListener(e -> {
-            JOptionPane.showMessageDialog(this, "Viết code thêm khách hàng mới tại đây!");
-            // Sau khi thêm mới, hãy thêm vào danhSachKhach và cbKhachHang như mẫu trên.
-        });
+
 
         pnlInfo.add(new JLabel("Mã hóa đơn:"));
         pnlInfo.add(txtIdHD);
@@ -157,7 +147,6 @@ public class AddHoaDonDialog extends JDialog {
         pnlInfo.add(new JLabel("ID Khách hàng:"));
         JPanel khachHangPanel = new JPanel(new BorderLayout());
         khachHangPanel.add(cbKhachHang, BorderLayout.CENTER);
-        khachHangPanel.add(btnThemKhachHang, BorderLayout.EAST);
         pnlInfo.add(khachHangPanel);
         pnlInfo.add(lblDiemHienTai); // chỉ add 1 lần!
         pnlInfo.add(new JLabel("Điểm sử dụng:"));
@@ -189,6 +178,21 @@ public class AddHoaDonDialog extends JDialog {
         // Set combobox cho cột tên thuốc
         JComboBox<String> cbTenThuoc = new JComboBox<>();
         for (Thuoc t : allThuocList) cbTenThuoc.addItem(t.getTenThuoc());
+        cbTenThuoc.setEditable(true);
+        ((JTextField) cbTenThuoc.getEditor().getEditorComponent()).addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyReleased(java.awt.event.KeyEvent e) {
+                String input = ((JTextField) cbTenThuoc.getEditor().getEditorComponent()).getText();
+                cbTenThuoc.removeAllItems();
+                for (Thuoc t : allThuocList) {
+                    if (t.getTenThuoc().toLowerCase().contains(input.toLowerCase())) {
+                        cbTenThuoc.addItem(t.getTenThuoc());
+                    }
+                }
+                cbTenThuoc.setSelectedItem(input);
+                cbTenThuoc.showPopup();
+            }
+        });
         tblThuoc.getColumnModel().getColumn(0).setCellEditor(new DefaultCellEditor(cbTenThuoc));
 
         // Sự kiện khi sửa bảng thuốc, sẽ tự cập nhật đơn giá/thành tiền/tổng tiền
@@ -268,6 +272,7 @@ public class AddHoaDonDialog extends JDialog {
     }
 
 
+
     private void onSave() {
         if (txtIdHD.getText().trim().isEmpty()) {
             JOptionPane.showMessageDialog(this, "Mã hóa đơn không được để trống!");
@@ -280,13 +285,18 @@ public class AddHoaDonDialog extends JDialog {
         this.diemSuDung = 0;
         this.thanhTienSauGiam = 0.0;
         try {
-            this.diemSuDung = Integer.parseInt(txtDiemSuDung.getText().trim());
-            if (this.diemSuDung < 0) this.diemSuDung = 0;
-            if (this.diemSuDung > diemHienTai) this.diemSuDung = diemHienTai;
-            this.thanhTienSauGiam = Double.parseDouble(lblThanhTienSauGiam.getText().replace("Thanh toán: ", "").trim());
+            diemSuDung = Integer.parseInt(txtDiemSuDung.getText().trim());
+            if (diemSuDung < 0) diemSuDung = 0;
+            if (diemSuDung > diemHienTai) diemSuDung = diemHienTai;
         } catch (Exception ex) {
-            this.diemSuDung = 0;
-            this.thanhTienSauGiam = 0.0;
+            diemSuDung = 0;
+        }
+        try {
+            double tongTien = Double.parseDouble(txtTongTien.getText().trim());
+            thanhTienSauGiam = tongTien - diemSuDung * 1000;
+            if (thanhTienSauGiam < 0) thanhTienSauGiam = 0;
+        } catch (Exception ex) {
+            thanhTienSauGiam = 0.0;
         }
         saved = true;
         dispose(); // Đóng dialog
@@ -305,11 +315,12 @@ public class AddHoaDonDialog extends JDialog {
         String selected = (String) cbKhachHang.getSelectedItem();
         String idKH = selected != null ? selected.split(" - ")[0].trim() : "";
         hd.setIdKH(idKH);
-        hd.setTongTien(Double.parseDouble(txtTongTien.getText()));
+        hd.setTongTien(this.thanhTienSauGiam); // dùng tiền thực trả
         hd.setPhuongThucThanhToan(txtPhuongThuc.getText().trim());
         hd.setTrangThaiDonHang(txtTrangThai.getText().trim());
         return hd;
     }
+
 
     public List<ChiTietHoaDon> getChiTietHoaDonList() {
         List<ChiTietHoaDon> list = new ArrayList<>();
@@ -350,7 +361,7 @@ public class AddHoaDonDialog extends JDialog {
             int diemSuDung = Integer.parseInt(txtDiemSuDung.getText().trim());
             if (diemSuDung < 0) diemSuDung = 0;
             if (diemSuDung > diemHienTai) diemSuDung = diemHienTai;
-            double thanhTien = tongTien - diemSuDung * 1000; // Quy đổi điểm: 1 điểm = 1000đ, bạn điều chỉnh nếu muốn
+            double thanhTien = tongTien - diemSuDung * 1000; 
             if (thanhTien < 0) thanhTien = 0;
             lblThanhTienSauGiam.setText("Thanh toán: " + String.format("%.0f", thanhTien));
         } catch (Exception ex) {
